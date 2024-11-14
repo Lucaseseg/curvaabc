@@ -7,7 +7,6 @@ import streamlit as st
 from streamlit_option_menu import option_menu
 from sklearn.cluster import KMeans
 import google.generativeai as genai
-from dotenv import load_dotenv
 import time
 from io import BytesIO
 from reportlab.lib.pagesizes import A4
@@ -23,19 +22,16 @@ import re
 from streamlit_modal import Modal
 import markdown  # Import para conversão de Markdown
 
-# Carregar variáveis de ambiente
-load_dotenv()
-os.environ["GOOGLE_API_KEY"] = os.getenv("GOOGLE_API_KEY")
-
 # Configuração inicial da página
 st.set_page_config(page_title="Análise Curva ABC", page_icon="📊", layout="wide")
 
 # Configuração da API do Google Gemini
-api_key = os.getenv("GOOGLE_API_KEY")
+api_key = st.secrets["GOOGLE_API_KEY"]  # Ou st.secrets["google"]["api_key"] se usar estrutura aninhada
+
 if api_key:
     genai.configure(api_key=api_key)
 else:
-    st.error("Chave API do Google Gemini não encontrada. Por favor, configure a variável GOOGLE_API_KEY no arquivo .env.")
+    st.error("Chave API do Google Gemini não encontrada. Por favor, configure a variável GOOGLE_API_KEY nas Secrets do Streamlit.")
 
 # CSS Personalizado para estilização
 def custom_css():
@@ -326,28 +322,35 @@ def gerar_analise_gemini(df):
     # Salvar a análise gerada no estado da sessão
     st.session_state.analise_gemini = resposta_texto
 
+# Função para adicionar produtos manualmente com callback
+def adicionar_produto():
+    nome = st.session_state.nome_produto
+    preco = st.session_state.preco_produto
+    quantidade = st.session_state.quantidade_produto
+
+    if nome and preco > 0 and quantidade > 0:
+        if 'produtos' not in st.session_state:
+            st.session_state.produtos = []
+        st.session_state.produtos.append(
+            {"Nome": nome, "Preço": preco, "Quantidade": quantidade}
+        )
+        st.sidebar.success(f"Produto *{nome}* adicionado com sucesso!")
+        # Limpar os campos após adicionar
+        st.session_state.nome_produto = ""
+        st.session_state.preco_produto = 0.0
+        st.session_state.quantidade_produto = 0
+    else:
+        st.sidebar.error("Preencha todos os campos corretamente.")
+
 # Função para adicionar produtos manualmente
 def adicionar_produto_manual():
     with st.sidebar.expander("📋 Gerenciamento de Produtos", expanded=False):
         st.markdown("### Adicionar Produto Manualmente")
         nome = st.text_input("📝 Nome do Produto", key="nome_produto")
         preco = st.number_input("💰 Preço (R$)", min_value=0.0, format="%.2f", key="preco_produto")
-        quantidade = st.number_input("📦 Quantidade (acumulado em 3 meses)", min_value=0, step=1, key="quantidade_produto")
+        quantidade = st.number_input("📦 Quantidade", min_value=0, step=1, key="quantidade_produto")
 
-        if st.button("➕ Adicionar Produto", key="botao_adicionar"):
-            if nome and preco > 0 and quantidade > 0:
-                if 'produtos' not in st.session_state:
-                    st.session_state.produtos = []
-                st.session_state.produtos.append(
-                    {"Nome": nome, "Preço": preco, "Quantidade": quantidade}
-                )
-                st.sidebar.success(f"Produto *{nome}* adicionado com sucesso!")
-                # Limpar os campos após adicionar
-                st.session_state.nome_produto = ""
-                st.session_state.preco_produto = 0.0
-                st.session_state.quantidade_produto = 0
-            else:
-                st.sidebar.error("Preencha todos os campos corretamente.")
+        st.button("➕ Adicionar Produto", key="botao_adicionar", on_click=adicionar_produto)
 
 # Funções para salvar gráficos em imagens
 def salvar_grafico_pizza(data, titulo):
@@ -916,6 +919,14 @@ def menu_principal():
         }
     )
     return selected
+
+# Inicializar os campos de entrada no session_state se não existirem
+if 'nome_produto' not in st.session_state:
+    st.session_state.nome_produto = ""
+if 'preco_produto' not in st.session_state:
+    st.session_state.preco_produto = 0.0
+if 'quantidade_produto' not in st.session_state:
+    st.session_state.quantidade_produto = 0
 
 # Interface Principal
 exibir_logo()
