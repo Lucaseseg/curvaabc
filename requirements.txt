@@ -11,3 +11,4 @@ google-generativeai
 scipy
 markdown
 python-dotenv
+openpyxl
