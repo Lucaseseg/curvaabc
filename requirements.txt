@@ -10,3 +10,4 @@ reportlab
 google-generativeai
 scipy
 markdown
+python-dotenv
